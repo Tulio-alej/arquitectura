@@ -1,0 +1,148 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% Formato de párrafos: sangría y espaciado uniforme
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0.6em}
+\renewcommand{\baselinestretch}{1.1}
+
+\lstdefinestyle{mips}{
+  basicstyle=\ttfamily\footnotesize,
+  commentstyle=\color{gray}\itshape,
+  keywordstyle=\color{blue!60!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  morecomment=[l]{\#},
+  morekeywords={la,li,lw,sw,jal,jr,move,bne,beq,bnez,syscall},
+  xleftmargin=1.5em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+
+\title{Informe de Laboratorio 3}
+\author{Michelle Sayas. C.I: 31.717.191 \\ y Tulio Cordero. C.I: 30571603}
+\date{Octubre 2026}
+
+\begin{document}
+\maketitle
+
+\section{Explique cómo se organiza la memoria cuando un sistema utiliza memory-mapped I/O. ¿En qué región de memoria se suelen mapear los dispositivos? ¿Qué implicaciones tiene para las instrucciones lw y sw?}
+
+En un sistema con memory-mapped I/O existe un único espacio de direcciones compartido entre la RAM y los registros de los periféricos. En nuestros programas esto se refleja en la sección \texttt{.data}, donde cada dispositivo se representa con registros de 32 bits en posiciones consecutivas de memoria: \texttt{LuzControl}, \texttt{LuzEstado} y \texttt{LuzDatos} para el sensor de luminosidad, y \texttt{TensionControl}, \texttt{TensionEstado}, \texttt{TensionSistol} y \texttt{TensionDiastol} para el módulo de tensión arterial. Cada uno se declara como \texttt{.word 0} y se accede por su dirección, igual que cualquier variable.
+
+En un sistema real, los dispositivos se mapean en regiones altas del espacio de direcciones, separadas de la RAM. En MIPS32 se ubican en la región de kernel no cacheada (\texttt{kseg1}, desde \texttt{0xA0000000}), y MARS reserva la zona \texttt{0xFFFF0000}--\texttt{0xFFFFFFFF}. En esta práctica, al no existir hardware real, los registros se simulan en el segmento de datos.
+
+Para \texttt{lw} y \texttt{sw} esto implica que bastan para toda la E/S. En \texttt{ejercicio1\_sensor\_luz.asm}, \texttt{InicializarSensorLuz} usa \texttt{sw \$t1, 0(\$t0)} sobre \texttt{LuzControl} para enviar la orden de inicialización, y \texttt{lw \$t1, 0(\$t0)} sobre \texttt{LuzEstado} para consultar el estado. Sin embargo, estas posiciones no se comportan como memoria ordinaria: un valor leído puede cambiar sin intervención del programa y una escritura puede disparar una acción, por lo que no deben almacenarse en caché ni reordenarse sus accesos.
+
+\section{¿Cuál es la principal diferencia entre memory-mapped I/O y la entrada/salida por puertos? ¿Qué ventajas y desventajas tiene cada enfoque? ¿Por qué MIPS32 utiliza principalmente memory-mapped I/O?}
+
+La diferencia principal es que en el memory-mapped I/O los dispositivos comparten el espacio de direcciones con la memoria, mientras que en la E/S por puertos existe un espacio independiente, accesible mediante instrucciones propias (como \texttt{IN} y \texttt{OUT} en x86) y una señal de bus que distingue memoria de E/S.
+
+El memory-mapped I/O tiene como ventajas que no requiere instrucciones especiales y que permite usar cualquier modo de direccionamiento sobre los registros del dispositivo. Nuestros dos programas lo muestran: toda la comunicación con el sensor y con el módulo de tensión se logró únicamente con \texttt{la}, \texttt{lw} y \texttt{sw}. Como desventajas, consume espacio de direcciones y obliga a evitar el uso de caché en esas regiones. La E/S por puertos, por su parte, no ocupa direcciones de memoria y facilita aislar y proteger la E/S, pero exige instrucciones adicionales y resulta menos flexible.
+
+MIPS32 utiliza principalmente memory-mapped I/O porque es una arquitectura \emph{load/store} con un conjunto de instrucciones reducido y regular, acorde con la filosofía RISC, que evita añadir instrucciones dedicadas a la E/S.
+
+\section{En un sistema con memory-mapped I/O: ¿Qué problemas pueden surgir si dos dispositivos usan direcciones solapadas? ¿Cómo se evita este conflicto?}
+
+Si dos dispositivos usan direcciones solapadas, ambos responden a un mismo acceso. En una lectura se produce una colisión en el bus de datos que genera valores corruptos, y una escritura puede afectar simultáneamente a ambos dispositivos. En nuestros programas, por ejemplo, si \texttt{LuzEstado} y \texttt{TensionEstado} ocuparan la misma dirección, la espera activa de un dispositivo podría terminar por el estado del otro, y una escritura de \texttt{1} en \texttt{LuzControl} iniciaría también una medición de tensión.
+
+El conflicto se evita definiendo un mapa de memoria en el que cada dispositivo tenga un rango exclusivo, y empleando un decodificador de direcciones que active una única señal de selección (\emph{chip select}) por rango. En los programas entregados el ensamblador asigna a cada etiqueta de \texttt{.data} una dirección distinta, lo que garantiza que no haya solapes. En sistemas modernos, el firmware y el sistema operativo asignan estos rangos de forma controlada.
+
+\section{¿Por qué se considera que el memory-mapped I/O simplifica el diseño del conjunto de instrucciones de un procesador? ¿Qué tipo de instrucciones adicionales serían necesarias si se usara E/S por puertos?}
+
+Al reutilizar \texttt{lw} y \texttt{sw} para acceder a los periféricos, no se necesitan códigos de operación de E/S, modos de direccionamiento propios ni lógica de decodificación adicional dentro del procesador. Esto se aprecia en \texttt{controlador\_tension}, que inicia la medición con \texttt{sw}, espera con \texttt{lw} y \texttt{beq}, y obtiene los resultados con \texttt{lw}, todo con instrucciones comunes del ISA.
+
+Con E/S por puertos serían necesarias instrucciones como \texttt{in} (leer de un puerto) y \texttt{out} (escribir en un puerto), con variantes por tamaño de dato (byte, media palabra, palabra) y por forma de indicar el puerto (inmediato o en registro). Los \texttt{sw} y \texttt{lw} de nuestros procedimientos tendrían que sustituirse por estas instrucciones. También podrían requerirse instrucciones de cadena para transferencias en bloque.
+
+\section{¿Qué ocurre a nivel del bus de datos y direcciones cuando el procesador accede a una dirección de memoria que corresponde a un dispositivo? ¿Cómo sabe el hardware que debe acceder a un periférico en lugar de la RAM?}
+
+Cuando el procesador ejecuta, por ejemplo, \texttt{lw \$v0, 0(\$t0)} con \texttt{\$t0} apuntando a \texttt{LuzDatos}, coloca esa dirección en el bus de direcciones y activa la señal de lectura; en un \texttt{sw}, como el que escribe en \texttt{LuzControl}, además pone el dato en el bus de datos. Un decodificador de direcciones compara los bits más significativos con los rangos asignados. Si la dirección pertenece al rango de un periférico, activa el \emph{chip select} de ese dispositivo y desactiva la RAM.
+
+A continuación, el dispositivo coloca el contenido de su registro en el bus de datos (lectura) o lo captura (escritura). De esta forma el hardware sabe a quién dirigirse únicamente por la dirección, sin que la instrucción lo indique. En MARS este proceso no es visible, porque los registros simulados residen en la memoria de datos.
+
+\section{¿Es posible que un programa normal (sin privilegios) acceda a un dispositivo mapeado en memoria? ¿Qué mecanismos de protección existen para evitar accesos no autorizados?}
+
+En un sistema real normalmente no. Las direcciones de E/S se encuentran en el espacio de kernel, y un acceso desde modo usuario provoca una excepción por error de dirección. En MARS, en cambio, no existe protección: nuestros programas acceden libremente a \texttt{LuzControl} o \texttt{TensionControl} sin restricción alguna, porque se ejecutan como si tuvieran privilegios totales.
+
+Los mecanismos de protección son: los modos de ejecución usuario/kernel, la unidad de gestión de memoria (MMU) con tablas de páginas y bits de permisos, que solo mapean un dispositivo en el espacio de un proceso si el sistema operativo lo autoriza, y el uso de controladores (\emph{drivers}) a los que los programas acceden mediante llamadas al sistema.
+
+\section{¿Qué técnicas se pueden emplear para evitar esperas activas innecesarias al interactuar con dispositivos?}
+
+Nuestros programas usan espera activa: el bucle \texttt{esperaInit} en \texttt{InicializarSensorLuz} y el bucle \texttt{espera} en \texttt{controlador\_tension} consultan repetidamente el registro de estado, consumiendo ciclos de CPU sin hacer trabajo útil. Para evitarlo existen varias técnicas. Las interrupciones permiten que el dispositivo avise al procesador cuando está listo, liberándolo para otras tareas. El acceso directo a memoria (DMA) transfiere bloques de datos sin intervención de la CPU. También se puede realizar un sondeo periódico controlado por un temporizador, ejecutando otro trabajo entre consultas.
+
+Además, el sistema operativo puede bloquear el hilo o proceso solicitante hasta que ocurra el evento, y es recomendable usar esperas con tiempo límite (\emph{timeout}) para evitar bloqueos indefinidos, algo que nuestros bucles no incluyen.
+
+\section{Análisis y Discusión de los Resultados}
+
+\subsection*{Ejercicio 1: sensor de luminosidad}
+
+En el archivo \texttt{ejercicio1\_sensor\_luz.asm} se definieron en la sección de datos los registros \texttt{LuzControl}, \texttt{LuzEstado} y \texttt{LuzDatos}. El procedimiento \texttt{InicializarSensorLuz} escribe 1 en \texttt{LuzControl} y realiza una espera activa sobre \texttt{LuzEstado} hasta que vale 1. El procedimiento \texttt{LeerLuminosidad} devuelve en \texttt{\$v0} la lectura y en \texttt{\$v1} el código de estado (0 si la lectura es correcta, $-1$ si hay error).
+
+\begin{lstlisting}[style=mips]
+InicializarSensorLuz:
+        la   $t0, LuzControl
+        li   $t1, 1
+        sw   $t1, 0($t0)         # inicializa el sensor
+        la   $t0, LuzEstado
+esperaInit:
+        lw   $t1, 0($t0)
+        li   $t2, 1
+        bne  $t1, $t2, esperaInit    # espera activa
+        jr   $ra
+
+LeerLuminosidad:
+        la   $t0, LuzEstado
+        lw   $t1, 0($t0)
+        li   $t2, -1
+        beq  $t1, $t2, lecturaError
+        li   $t2, 1
+        bne  $t1, $t2, LeerLuminosidad
+        la   $t0, LuzDatos
+        lw   $v0, 0($t0)
+        li   $v1, 0
+        jr   $ra
+lecturaError:
+        li   $v0, 0
+        li   $v1, -1
+        jr   $ra
+\end{lstlisting}
+
+Como MARS no dispone de hardware real, el programa principal simula el dispositivo escribiendo directamente en \texttt{LuzEstado} y \texttt{LuzDatos} antes de cada llamada. Con el dato 742 y estado 1 se imprime la lectura con código de estado 0, y con el estado $-1$ se informa el error de hardware. Sin dejar \texttt{LuzEstado} en 1 antes de inicializar, la espera activa nunca terminaría, lo que evidencia el principal inconveniente del sondeo.
+
+\subsection*{Ejercicio 2: módulo de tensión arterial}
+
+En el archivo \texttt{ejercicio2\_tension.asm} se definieron los registros \texttt{TensionControl}, \texttt{TensionEstado}, \texttt{TensionSistol} y \texttt{TensionDiastol}. El procedimiento \texttt{controlador\_tension} escribe 1 en \texttt{TensionControl} para iniciar la medición, espera mientras \texttt{TensionEstado} sea 0 y, cuando vale 1, retorna la tensión sistólica en \texttt{\$v0} y la diastólica en \texttt{\$v1}.
+
+\begin{lstlisting}[style=mips]
+controlador_tension:
+        la   $t0, TensionControl
+        li   $t1, 1
+        sw   $t1, 0($t0)             # inicia la medicion
+        la   $t0, TensionEstado
+espera:
+        lw   $t1, 0($t0)
+        beq  $t1, $zero, espera      # 0 -> midiendo
+        la   $t0, TensionSistol
+        lw   $v0, 0($t0)
+        la   $t0, TensionDiastol
+        lw   $v1, 0($t0)
+        jr   $ra
+\end{lstlisting}
+
+El programa principal simula el dispositivo cargando 120 en \texttt{TensionSistol}, 80 en \texttt{TensionDiastol} y 1 en \texttt{TensionEstado}, por lo que la espera termina de inmediato y la salida muestra \texttt{Tension sistolica: 120} y \texttt{Tension diastolica: 80}.
+
+\subsection*{Discusión general}
+
+Ambos ejercicios demuestran que el memory-mapped I/O permite manejar los dispositivos con las instrucciones habituales \texttt{lw} y \texttt{sw}, tratando sus registros como posiciones de memoria. Se requiere, no obstante, sincronización mediante los registros de estado (\texttt{LuzEstado} y \texttt{TensionEstado}). La limitación más importante es el uso de espera activa, que desperdicia ciclos de CPU y podría bloquear el programa si el dispositivo nunca responde; esto podría mejorarse con interrupciones o tiempos límite. Para dispositivos simples el modelo es eficaz, pero en sistemas complejos se necesitan capas de abstracción (controladores) que gestionen concurrencia y errores.
+
+\end{document}
