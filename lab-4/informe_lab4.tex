@@ -1,0 +1,218 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning}
+
+% ---------- Formato de listados de codigo (caja, numeracion, colores) ----------
+\lstdefinelanguage{MIPS}{
+  alsoletter={.},
+  morekeywords={add,addi,addu,addiu,sub,subu,and,andi,or,ori,xor,nor,sll,srl,sra,
+    lw,lb,lbu,sw,sb,lui,beq,bne,beqz,bnez,blt,bgt,ble,bge,bltu,j,jal,jr,jalr,
+    move,li,la,rem,div,mul,mfc0,mtc0,mfhi,mflo,eret,syscall,nop,slt,slti},
+  morekeywords=[2]{.data,.text,.kdata,.ktext,.globl,.space,.word,.asciiz,.eqv},
+  sensitive=false,
+  morecomment=[l]{\#},
+  morestring=[b]"
+}
+\lstset{
+  language=MIPS,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  keywordstyle=[2]\color{purple},
+  commentstyle=\itshape\color{gray},
+  stringstyle=\color{teal},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=6pt,
+  frame=single,
+  breaklines=true,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=8,
+  xleftmargin=1.5em,
+  framexleftmargin=1.5em
+}
+
+\title{Informe de Laboratorio 4}
+\author{Michelle Sayas. C.I: 31.717.191\\ y Tulio Cordero. C.I: 30571603}
+\date{Octubre 2026}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\section{Explique con un diagrama cómo funciona el ciclo de una interrupción de hardware (desde que ocurre el evento hasta que se atiende).}
+
+El ciclo de una interrupción de hardware comienza cuando un dispositivo activa su línea de petición, y termina cuando el procesador reanuda el programa interrumpido. La Figura~\ref{fig:ciclo} resume las etapas.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=0.45cm, every node/.style={draw, rounded corners, align=center, minimum width=8.2cm, font=\small}, >=Stealth]
+\node (a) {Ocurre el evento: el dispositivo activa su línea de interrupción};
+\node (b) [below=of a] {La CPU termina la instrucción en curso y comprueba\\ IE\,=\,1, EXL\,=\,0 y el bit IM correspondiente};
+\node (c) [below=of b] {Hardware: EPC $\leftarrow$ PC, Cause $\leftarrow$ código, EXL $\leftarrow$ 1};
+\node (d) [below=of c] {PC $\leftarrow$ dirección de la rutina de servicio (\texttt{0x80000180})};
+\node (e) [below=of d] {Software: guarda el contexto, lee Cause\\ y atiende al dispositivo};
+\node (f) [below=of e] {Restaura el contexto y ejecuta \texttt{eret} (PC $\leftarrow$ EPC)};
+\node (g) [below=of f] {Se reanuda el programa interrumpido};
+\foreach \i/\j in {a/b,b/c,c/d,d/e,e/f,f/g} \draw[->] (\i) -- (\j);
+\end{tikzpicture}
+\caption{Ciclo de una interrupción de hardware.}
+\label{fig:ciclo}
+\end{figure}
+
+En los ejercicios de esta práctica el evento es la pulsación de una tecla en el \emph{Keyboard and Display MMIO Simulator}: el dispositivo deja el carácter en \texttt{0xFFFF0004}, activa el bit \emph{Ready} y, como el bit de habilitación de \texttt{0xFFFF0000} está en 1, levanta la interrupción. La rutina situada en \texttt{.ktext 0x80000180} lee el carácter y regresa con \texttt{eret}.
+
+% =====================================================================
+\section{¿Qué diferencias hay entre gestionar E/S con sondeo y hacerlo con interrupciones?}
+
+En el sondeo (\emph{polling}) es la CPU quien consulta repetidamente el registro de estado del dispositivo para saber si hay un dato disponible. Es un esquema sencillo y determinista, pero la CPU permanece ocupada en una espera activa aunque no ocurra ningún evento.
+
+Con interrupciones es el dispositivo quien avisa al procesador cuando requiere atención. La CPU puede dedicarse a otras tareas entretanto y la latencia de respuesta es menor, a cambio de mayor complejidad: se necesita una rutina de servicio, guardar el contexto, habilitar las interrupciones en el dispositivo y en el procesador, y la depuración es más difícil porque la ejecución es asíncrona.
+
+% =====================================================================
+\section{¿Qué ventajas tiene el uso de interrupciones en términos de uso del procesador?}
+
+Se elimina el tiempo perdido en esperas activas, de modo que los ciclos de CPU se emplean en trabajo útil. Además, mejora la capacidad de respuesta ante eventos urgentes, se reduce el consumo energético (la CPU puede entrar en reposo hasta que llegue la interrupción) y se hace posible la multiprogramación, ya que mientras un proceso espera a un dispositivo la CPU puede ejecutar otro.
+
+% =====================================================================
+\section{¿Qué registros especiales se utilizan en MIPS32 para gestionar interrupciones?}
+
+Se emplean registros del coprocesador 0, accesibles con \texttt{mfc0} y \texttt{mtc0}:
+
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Status} (\$12): contiene el bit de habilitación global IE (bit 0), el bit EXL (bit 1) que se activa al atender una excepción, la máscara de interrupciones IM (bits 8--15) y el modo kernel/usuario.
+\item \textbf{Cause} (\$13): contiene el código de la excepción (ExcCode, bits 2--6) y las interrupciones pendientes (IP, bits 8--15).
+\item \textbf{EPC} (\$14): dirección de la instrucción donde se produjo la excepción o interrupción, usada por \texttt{eret} para retornar.
+\item \textbf{BadVAddr} (\$8): dirección inválida que causó un fallo de acceso.
+\item \textbf{Count} (\$9) y \textbf{Compare} (\$11): temporizador del procesador.
+\end{itemize}
+
+También son relevantes los registros \texttt{\$k0} y \texttt{\$k1}, reservados para el kernel, y los registros mapeados en memoria del teclado y la pantalla (\texttt{0xFFFF0000}--\texttt{0xFFFF000C}).
+
+% =====================================================================
+\section{¿Por qué es necesario guardar el contexto (registros) al entrar en una rutina de servicio?}
+
+La interrupción puede ocurrir entre dos instrucciones cualesquiera y el programa interrumpido no sabe que fue interrumpido. Si la rutina modifica registros (por ejemplo \texttt{\$t0}, \texttt{\$t1} o \texttt{\$at}) sin restaurarlos, al regresar el programa continuaría con valores corruptos. Por ello la rutina guarda en memoria los registros que va a utilizar y los restaura justo antes de \texttt{eret}. En \texttt{ejercicio1\_buffer\_teclado.asm} se guardan \texttt{\$at}, \texttt{\$t0}, \texttt{\$t1} y \texttt{\$t2} en la zona \texttt{.kdata} (\texttt{sv\_at}, \texttt{sv\_t0}, \texttt{sv\_t1}, \texttt{sv\_t2}).
+
+% =====================================================================
+\section{Momentos en que pueden generarse excepciones en un sistema MIPS32.}
+
+\noindent\textbf{a) Enumera al menos 4 situaciones en las que se pueda generar una excepción (por ejemplo: desbordamiento aritmético, fallo de dirección, etc.).}
+
+\medskip
+\noindent Algunas situaciones son: desbordamiento aritmético en \texttt{add}, \texttt{addi} o \texttt{sub}; dirección no alineada o fuera de rango en \texttt{lw}/\texttt{sw} o al captar una instrucción; instrucción reservada o ilegal; ejecución de \texttt{syscall} o \texttt{break}; fallo de TLB o de página; coprocesador no disponible; y las interrupciones externas (teclado, reloj).
+
+\medskip
+\noindent\textbf{b) Explica qué etapas del pipeline pueden provocar una excepción y por qué.}
+
+\medskip
+\noindent Una excepción se detecta en la etapa donde ya se dispone de la información necesaria: en \emph{IF} (dirección de instrucción inválida o fallo de TLB), en \emph{ID} (instrucción ilegal, \texttt{syscall}, \texttt{break}), en \emph{EX} (desbordamiento aritmético), y en \emph{MEM} (dirección de datos no alineada o inválida, fallo de TLB). En \emph{WB} normalmente no se producen. Como varias instrucciones están en vuelo a la vez, la excepción debe ser precisa: las instrucciones anteriores completan, y la afectada y las posteriores se descartan.
+
+% =====================================================================
+\section{Estrategias de tratamiento de excepciones e interrupciones}
+
+\noindent\textbf{a) Explica las diferencias entre interrupciones y excepciones (¿son síncronas o asíncronas?).}
+
+\medskip
+\noindent Las excepciones son \emph{síncronas}: las provoca la propia instrucción en ejecución y se repiten si se ejecuta de nuevo el mismo código con los mismos datos. Las interrupciones son \emph{asíncronas}: provienen de eventos externos al flujo de instrucciones (teclado, reloj, etc.) y pueden llegar en cualquier momento.
+
+\medskip
+\noindent\textbf{b) Describe brevemente dos estrategias para tratar excepciones en un sistema MIPS32. ¿Cómo se redirige la ejecución hacia la rutina de servicio? ¿Cuál es la función del registro EPC (Exception Program Counter)?}
+
+\medskip
+\noindent Una estrategia es el \emph{vector único}: el hardware salta siempre a una dirección fija (\texttt{0x80000180}) y el software lee \texttt{Cause} y despacha según el ExcCode, que es lo que hacen los programas de esta práctica. Otra es el uso de \emph{vectores separados o interrupciones vectorizadas}, donde cada causa o fuente tiene su propia dirección de entrada, evitando el despacho por software.
+
+La ejecución se redirige porque, al aceptar la excepción, el hardware escribe el PC en EPC, registra la causa en Cause, pone EXL en 1 y carga en el PC la dirección del manejador. El registro \textbf{EPC} guarda la dirección de la instrucción afectada (o la siguiente, en una interrupción), de modo que \texttt{eret} pueda retomar la ejecución, o el manejador pueda calcular dónde reanudar (por ejemplo EPC\,+\,4 para saltarse una \texttt{syscall}).
+
+% =====================================================================
+\section{Habilitación de interrupciones en dispositivos y procesador}
+
+\noindent\textbf{a) Explica cómo se habilitan las interrupciones en: el teclado, la pantalla y el procesador (detalla qué bits del registro Status deben modificarse).}
+
+\medskip
+\noindent \emph{Teclado}: se escribe 1 en el bit 1 (Interrupt Enable) del registro \texttt{0xFFFF0000} (Receiver Control). \emph{Pantalla}: se escribe 1 en el bit 1 del registro \texttt{0xFFFF0008} (Transmitter Control). \emph{Procesador}: en \textbf{Status} se debe poner en 1 el bit 0 (IE), asegurar que el bit 1 (EXL) esté en 0, y activar los bits de máscara IM correspondientes (bit 8 para el teclado y bit 9 para la pantalla en MARS). En los programas se hace con:
+
+\begin{lstlisting}
+        li   $t0, RCTRL
+        li   $t1, 2
+        sw   $t1, 0($t0)        # habilita interrupcion del teclado
+        mfc0 $t0, $12
+        ori  $t0, $t0, 0x0101   # IE (bit 0) + IM8 (bit 8)
+        mtc0 $t0, $12
+\end{lstlisting}
+
+\medskip
+\noindent\textbf{b) ¿Qué pasaría si habilitamos interrupciones en los dispositivos, pero no en el procesador?}
+
+\medskip
+\noindent El dispositivo levantaría su señal, pero la CPU la ignoraría: el evento quedaría pendiente en Cause y no se ejecutaría ninguna rutina de servicio. En los ejercicios, el buffer permanecería vacío y el pulsador nunca se detectaría.
+
+% =====================================================================
+\section{Procesamiento de interrupciones}
+
+\noindent\textbf{a) Describe paso a paso qué ocurre cuando se produce una interrupción de reloj: desde que el evento ocurre hasta que la rutina de servicio termina; ¿qué registros se guardan y restauran?; ¿qué hace el hardware y qué hace el software (sistema operativo o rutina)?}
+
+\medskip
+\noindent Los pasos son:
+\begin{enumerate}[leftmargin=2em, label=\arabic*.]
+\item El temporizador alcanza el valor de comparación (Count\,=\,Compare) y activa su línea de interrupción.
+\item La CPU la reconoce al terminar la instrucción en curso, si IE\,=\,1, EXL\,=\,0 y el bit IM está activo.
+\item \textbf{Hardware}: guarda el PC en EPC, escribe el código en Cause, pone EXL\,=\,1 (bloquea nuevas interrupciones) y salta a \texttt{0x80000180}.
+\item \textbf{Software}: guarda los registros que usará (\texttt{\$at}, \texttt{\$t0}, \dots), lee Cause para identificar la fuente, atiende al reloj (reprograma Compare, actualiza contadores o decide cambiar de proceso), y restaura los registros.
+\item \textbf{Hardware}: \texttt{eret} limpia EXL y carga el PC con EPC, reanudando el programa.
+\end{enumerate}
+
+Por hardware se guardan EPC, Cause y el estado de EXL en Status; por software se guardan y restauran los registros de propósito general que usa la rutina.
+
+\medskip
+\noindent\textbf{b) ¿Por qué es importante guardar el contexto (registros generales, EPC, Status) al entrar en la rutina?}
+
+\medskip
+\noindent Para no corromper el programa interrumpido y poder reanudarlo exactamente en el mismo estado. Guardar además EPC y Status es imprescindible si se permiten interrupciones anidadas, ya que una nueva interrupción sobrescribiría EPC y se perdería el punto de retorno.
+
+% =====================================================================
+\section{Interrupciones de reloj y control de ejecución}
+
+\noindent\textbf{a) Explica cómo una interrupción de reloj puede usarse para: evitar que un programa quede en un bucle infinito; finalizar programas que superan un tiempo máximo de ejecución.}
+
+\medskip
+\noindent El sistema operativo programa el temporizador antes de ceder la CPU a un programa. Si este entra en un bucle infinito, el reloj interrumpe de todas formas, el manejador recupera el control y puede cambiar a otro proceso (planificación expulsiva). Si además se lleva la cuenta del tiempo consumido y este supera un máximo establecido, el manejador puede terminar el programa y liberar sus recursos.
+
+\medskip
+\noindent\textbf{b) ¿Qué debe hacer el software si el programa finaliza antes de que ocurra la interrupción de reloj?}
+
+\medskip
+\noindent Debe cancelar o desactivar el temporizador (o reprogramarlo) para que no interrumpa fuera de contexto, y no termine por error a otro programa o altere el estado del sistema.
+
+% =====================================================================
+\section{Análisis y Discusión de los Resultados}
+
+\subsection*{Ejercicio 1: buffer de teclado con filtro de caracteres}
+
+En el archivo \texttt{ejercicio1\_buffer\_teclado.asm} se define un buffer circular de 16 bytes con los índices \texttt{head} (escritura), \texttt{tail} (lectura) y el contador \texttt{count}. El programa principal habilita la interrupción en el registro de control del teclado y los bits IE e IM8 de Status. Luego mide los 20 segundos con \texttt{syscall} 30 (tiempo del sistema en milisegundos) mientras las interrupciones llegan durante la espera.
+
+La rutina de servicio (\texttt{.ktext 0x80000180}) guarda los registros que utiliza, comprueba en Cause que se trata de una interrupción de teclado, lee el carácter de \texttt{0xFFFF0004} (lo que limpia el bit \emph{Ready}), lo filtra y lo inserta en el buffer. Si el buffer está lleno se descarta el dato más antiguo. Se añadió además la conversión de minúsculas a mayúsculas, de modo que lo escrito en minúscula también se guarda como letra A--Z; el resto de caracteres se descarta. Al terminar el intervalo se deshabilita IE para vaciar e imprimir el buffer sin condiciones de carrera con la rutina de servicio, se vuelve a habilitar y el proceso se repite indefinidamente.
+
+\lstinputlisting{ejercicio1_buffer_teclado.asm}
+
+\subsection*{Ejercicio 2: semáforo con pulsador}
+
+En \texttt{ejercicio2\_semaforo.asm} el semáforo es una máquina de estados verde $\rightarrow$ amarillo $\rightarrow$ rojo $\rightarrow$ verde. En verde el programa espera la bandera \texttt{pulsado}, que activa la rutina de servicio al recibir la tecla \texttt{s}. Después se muestran los mensajes y se espera con un temporizador de 20, 10 y 30 segundos, y el ciclo se repite. Mientras se espera con el temporizador, la tecla \texttt{s} se ignora.
+
+También se implementó la tecla \texttt{e}: la rutina de servicio activa la bandera \texttt{salir}, que el programa consulta en la espera del pulsador y dentro del temporizador, e imprime un mensaje y finaliza con \texttt{syscall} 10. Durante las pruebas se detectó que el temporizador terminaba de inmediato porque la duración se guardaba en \texttt{\$a1}, y \texttt{syscall} 30 sobrescribe \texttt{\$a0} y \texttt{\$a1} con el tiempo; la solución fue guardar la duración en \texttt{\$s1}.
+
+\lstinputlisting{ejercicio2_semaforo.asm}
+
+\subsection*{Discusión general}
+
+Ambos ejercicios muestran que las interrupciones permiten atender un dispositivo sin bloquear el programa principal: la tecla se procesa en cuanto llega, aunque el programa esté en medio de una espera. Un límite importante es que MARS no ofrece una interrupción de temporizador estándar, por lo que el tiempo se mide con una espera activa sobre \texttt{syscall} 30 y sólo el teclado usa interrupciones reales. En hardware real se programaría el registro \texttt{Compare} de CP0 para obtener la interrupción de reloj y evitar esa espera activa. Para que el programa reciba las teclas es necesario usar el \emph{Keyboard and Display MMIO Simulator} con \emph{Connect to MIPS}, ya que la lectura por consola mediante \texttt{syscall} bloquea y no genera interrupciones.
+
+\end{document}
