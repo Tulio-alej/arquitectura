@@ -1,0 +1,13 @@
+# Traza de Ejemplo Didactico para el Proyecto 4
+# Formato: [R|W] 0xDireccion
+# Demuestra fallos compulsorios, aciertos por localidad temporal y desalojo.
+R 0x00000000
+R 0x00000040
+R 0x00000080
+R 0x00000000
+W 0x000000C0
+R 0x00000000
+R 0x00000040
+W 0x00000100
+R 0x00000000
+R 0x00000080

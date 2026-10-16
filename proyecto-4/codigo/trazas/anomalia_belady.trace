@@ -1,0 +1,15 @@
+# Traza clasica de la Anomalia de Belady para politica FIFO
+# Muestra que FIFO puede aumentar sus fallos al aumentar el numero de marcos/vias
+# Secuencia: 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5 (multiplicados por bloque de 64 bytes)
+R 0x0040
+R 0x0080
+R 0x00C0
+R 0x0100
+R 0x0040
+R 0x0080
+R 0x0140
+R 0x0040
+R 0x0080
+R 0x00C0
+R 0x0100
+R 0x0140

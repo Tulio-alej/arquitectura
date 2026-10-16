@@ -1,0 +1,741 @@
+\documentclass[11pt,letterpaper]{article}
+
+% ==============================================================================
+% PAQUETES Y CONFIGURACIÓN GENERAL
+% ==============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish, es-tabla, es-noquoting]{babel}
+\usepackage{amsmath, amsfonts, amssymb}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{tikz}
+\usetikzlibrary{babel, shapes.geometric, positioning, calc}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{fancyhdr}
+\usepackage{microtype}
+
+% ==============================================================================
+% DEFINICIÓN DE COLORES INSTITUCIONALES Y TÉCNICOS
+% ==============================================================================
+\definecolor{UCBlue}{RGB}{16, 44, 87}         % Azul institucional oscuro
+\definecolor{FACYTBlue}{RGB}{0, 120, 200}     % Azul vibrante FACYT
+\definecolor{AccentCyan}{RGB}{0, 168, 204}    % Cian tecnológico
+\definecolor{AccentGreen}{RGB}{46, 125, 50}   % Verde ingeniería
+\definecolor{DarkText}{RGB}{30, 41, 59}       % Gris oscuro para lectura
+\definecolor{LightGray}{RGB}{245, 247, 250}   % Fondo de código y recuadros
+\definecolor{BorderGray}{RGB}{218, 225, 233}  % Borde suave
+
+% ==============================================================================
+% CONFIGURACIÓN DE HIPERVÍNCULOS
+% ==============================================================================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=UCBlue,
+    citecolor=AccentGreen,
+    urlcolor=FACYTBlue,
+    pdfauthor={Jesús Escorcha, Tulio Cordero, Samuel Archila},
+    pdftitle={Informe Técnico: Comparación de Políticas de Reemplazo en Memoria Caché},
+    pdfsubject={Arquitectura del Computador - Proyecto 4},
+    pdfkeywords={Memoria Caché, LRU, FIFO, LFU, Complejidad O(1), Modelo 3C, AMAT, Belady}
+}
+
+% ==============================================================================
+% CONFIGURACIÓN DE LISTINGS (CÓDIGO FUENTE C++17)
+% ==============================================================================
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\footnotesize\color{DarkText},
+    keywordstyle=\bfseries\color{UCBlue},
+    commentstyle=\itshape\color{gray},
+    stringstyle=\color{AccentGreen},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    stepnumber=1,
+    backgroundcolor=\color{LightGray},
+    frame=single,
+    rulecolor=\color{BorderGray},
+    tabsize=4,
+    showstringspaces=false,
+    breaklines=true,
+    breakatwhitespace=true,
+    captionpos=b,
+    xleftmargin=12pt,
+    xrightmargin=5pt
+}
+
+% ==============================================================================
+% ENCABEZADOS Y PIES DE PÁGINA
+% ==============================================================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\color{gray}Universidad de Carabobo --- FaCYT}
+\fancyhead[R]{\footnotesize\color{gray}Arquitectura del Computador --- Proyecto 4}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% ==============================================================================
+% DATOS DEL PROYECTO
+% ==============================================================================
+\newcommand{\TituloDocumento}{Simulador de Caché de Alta Fidelidad y Comparación de Políticas de Reemplazo: LRU, FIFO y LFU}
+\newcommand{\SubtituloDocumento}{Diseño e Implementación en C++17 bajo Complejidad $O(1)$, Clasificación Formal de Fallos según las 3C de Mark D. Hill y Reutilización de Librerías Propias}
+\newcommand{\Asignatura}{Arquitectura del Computador}
+\newcommand{\Universidad}{Universidad de Carabobo}
+\newcommand{\Facultad}{Facultad Experimental de Ciencias y Tecnología}
+\newcommand{\Departamento}{Departamento de Computación}
+\newcommand{\Fecha}{Septiembre de 2026}
+
+% ==============================================================================
+% INICIO DEL DOCUMENTO
+% ==============================================================================
+\begin{document}
+
+% ------------------------------------------------------------------------------
+% PORTADA INSTITUCIONAL
+% ------------------------------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace*{-1.0cm}
+    
+    % Encabezado institucional con logos
+    \begin{minipage}[c]{0.18\textwidth}
+        \flushleft
+        \includegraphics[height=2.2cm, keepaspectratio]{logo_UC.png}
+    \end{minipage}%
+    \begin{minipage}[c]{0.64\textwidth}
+        \centering
+        {\bfseries\large\color{UCBlue}\Universidad} \par\vspace{0.15cm}
+        {\bfseries\normalsize\Facultad} \par\vspace{0.1cm}
+        {\normalsize\Departamento} \par\vspace{0.1cm}
+        {\bfseries\normalsize\color{FACYTBlue}\Asignatura}
+    \end{minipage}%
+    \begin{minipage}[c]{0.18\textwidth}
+        \flushright
+        \includegraphics[height=2.0cm, keepaspectratio]{Logo_facyt.png}
+    \end{minipage}
+
+    \vspace*{5.5cm}
+
+    \hrule height 2pt \relax
+    \vspace{0.45cm}
+    {\huge\bfseries\color{UCBlue} \TituloDocumento} \par
+    \vspace{0.35cm}
+    {\large\color{DarkText} \SubtituloDocumento} \par
+    \vspace{0.45cm}
+    \hrule height 0.8pt \relax
+
+    \vspace{1.2cm}
+    \begin{tcolorbox}[
+        enhanced,
+        colback=LightGray,
+        colframe=UCBlue,
+        arc=2mm,
+        boxrule=1pt,
+        width=0.92\textwidth
+    ]
+        \centering
+        \textbf{\color{UCBlue}PROYECTO N° 4:} \\
+        \textit{"Comparación de Políticas de Reemplazo (LRU, FIFO, LFU): Desarrollar un simulador de memoria caché que permita probar diferentes políticas de reemplazo y comparar su eficiencia. Medir el tiempo de ejecución y el hit ratio. Ajustar estructuras para gestionar eficientemente la política seleccionada."}
+    \end{tcolorbox}
+
+    \vfill
+
+    % Datos de los Integrantes
+    \begin{minipage}[t]{0.85\textwidth}
+        \begin{flushleft}
+            \textbf{\color{UCBlue}Integrantes del Equipo:}\par\vspace{0.25cm}
+            \begin{tabular}{ll}
+                $\bullet$ \textbf{Jesús Escorcha} & C.I.: 31.107.404 \\
+                $\bullet$ \textbf{Tulio Cordero}  & C.I.: 30.571.603 \\
+                $\bullet$ \textbf{Samuel Archila} & C.I.: 31.505.277 \\
+            \end{tabular}
+        \end{flushleft}
+    \end{minipage}
+
+    \vspace{0.8cm}
+    {\normalsize\color{DarkText} \Fecha}
+    \vspace*{0.2cm}
+\end{titlepage}
+
+% ------------------------------------------------------------------------------
+% RESUMEN Y ABSTRACT
+% ------------------------------------------------------------------------------
+\newpage
+\thispagestyle{plain}
+
+\begin{abstract}
+\noindent El presente informe técnico expone el diseño, desarrollo, verificación y contrastación experimental de un simulador de memoria caché de alta fidelidad implementado en \textbf{C++17} para entornos GNU/Linux, desarrollado en el marco del Proyecto 4 de la cátedra Arquitectura del Computador. El simulador permite evaluar y caracterizar de manera exhaustiva el comportamiento microarquitectónico de tres políticas de reemplazo clásicas: \textbf{LRU} (\textit{Least Recently Used}), \textbf{FIFO} (\textit{First-In, First-Out}) y \textbf{LFU} (\textit{Least Frequently Used}), contrastándolas adicionalmente frente a la política óptima fuera de línea de Belady (\textbf{MIN/OPT}) y una política estocástica (\textbf{Random}) como línea base.
+
+Para superar las deficiencias algorítmicas de simuladores académicos elementales —cuyas operaciones de selección de víctima o actualización de recencia suelen incurrir en costo lineal $O(N)$—, se diseñaron estructuras de datos compuestas que garantizan una complejidad temporal estrictamente constante \textbf{$O(1)$} para todas las operaciones críticas. En particular, para LFU se implementó el algoritmo bidimensional de cubetas de Ketan Shah, resolviendo de forma determinista y en tiempo constante los empates de frecuencia por antigüedad LRU. Asimismo, se integraron y reutilizaron de manera directa las estructuras de datos propias desarrolladas durante la carrera (\texttt{cola.hpp} y \texttt{pila.hpp}), empleando la cola para el control FIFO y la pila como lista de vías libres (\textit{Free List}) de hardware dentro de cada conjunto asociativo, eliminando por completo la sobrecarga de asignación dinámica en tiempo de simulación.
+
+La investigación trasciende la mera medición del \textit{Hit Ratio} al incorporar el cálculo formal del \textbf{AMAT} (\textit{Average Memory Access Time}) y los ciclos de parada de procesador (\textit{CPU Stalls}), integrando mediciones de tiempo monotónicas de alta resolución (\texttt{std::chrono::steady\_clock}), barreras de optimización del compilador mediante ensamblador en línea (\texttt{asm volatile}), y un clasificador formal de fallos basado en el \textbf{Modelo de las 3C de Mark D. Hill} mediante una caché sombra totalmente asociativa ejecutada en paralelo. La experimentación abarcó 10 conjuntos de datos (sintéticos, estadísticos bajo distribuciones Uniforme, Gaussiana y Zipf, y trazas reales con 100.000 referencias cada una), logrando validar experimentalmente la célebre \textbf{Anomalía de Belady} en FIFO y caracterizar la vulnerabilidad de \textit{inercia de frecuencia} en LFU frente a la adaptabilidad temporal de LRU. Finalmente, se presenta una evaluación crítica de los recursos pedagógicos del curso y un prompt estructurado para la generación de infografías mejoradas.
+\end{abstract}
+
+\vspace{0.5cm}
+\noindent\textbf{Palabras clave:} Memoria Caché, Políticas de Reemplazo, LRU, FIFO, LFU, Complejidad $O(1)$, Modelo 3C de Hill, AMAT, Anomalía de Belady, C++17, Arquitectura del Computador.
+
+\vspace{1.0cm}
+\tableofcontents
+
+\newpage
+
+% ==============================================================================
+% SECCIÓN 1: EL PROBLEMA
+% ==============================================================================
+\section{El Problema}
+
+\subsection{El Cuello de Botella de von Neumann y el \textit{Memory Wall}}
+En la arquitectura de computadores contemporánea, el rendimiento de los sistemas se encuentra condicionado por la disparidad exponencial de velocidad entre las unidades centrales de procesamiento (CPU) y la memoria principal (DRAM), fenómeno ampliamente documentado en la literatura especializada como la brecha de rendimiento procesador-memoria o \textbf{\textit{Memory Wall}} \cite{hennessy2011computer}.
+
+Mientras los procesadores modernos operan a frecuencias de gigahercios ejecutando múltiples instrucciones por ciclo de reloj (con tiempos de ciclo inferiores a $0.5\,\text{ns}$), la memoria principal de acceso aleatorio dinámica (DRAM) requiere típicamente entre $50\,\text{ns}$ y $100\,\text{ns}$ para satisfacer una solicitud de acceso (equivalente a un retardo de $100$ a $200$ ciclos de reloj de procesador). Esta alta latencia proviene de la naturaleza capacitiva de las celdas DRAM, las cuales requieren ciclos de precarga de línea de bits, amplificación de detección y operaciones periódicas de refresco destructivo.
+
+Para amortiguar esta penalización temporal crítica, se interpone entre la CPU y la DRAM una jerarquía de memorias intermedias ultra-rápidas construidas con tecnología de memoria de acceso aleatorio estática (\textbf{SRAM}). La memoria SRAM utiliza transistores biestables (típicamente 6 transistores por celda básica), lo cual permite responder a accesos de lectura y escritura en $1$ a $3$ ciclos de procesador sin necesidad de refresco. Sin embargo, su complejidad de integración física, densidad limitada y elevado consumo energético impiden fabricar memorias principales enteramente en SRAM, limitando su capacidad a tamaños de kilobytes o megabytes (L1, L2, L3).
+
+\subsection{El Principio de Localidad de Referencia}
+La viabilidad económica y técnica de la jerarquía de memoria descansa sobre el \textbf{Principio de Localidad de Referencia}, el cual establece que los programas informáticos no acceden a su espacio de memoria de forma uniformemente aleatoria, sino que exhiben dos patrones deterministas fundamentales:
+\begin{enumerate}
+    \item \textbf{Localidad Temporal:} Si una posición de memoria es referenciada en un instante de tiempo $t$, existe una probabilidad abrumadoramente alta de que vuelva a ser referenciada en un futuro cercano $t + \Delta t$ (e.g., variables de control de bucles, acumuladores, pilas de llamadas).
+    \item \textbf{Localidad Espacial:} Si una posición de memoria con dirección $A$ es referenciada, existe una alta probabilidad de que las posiciones contiguas $A + 1, A + 2, \dots$ sean referenciadas en breve (e.g., ejecución secuencial de código máquina, recorrido contiguo de arreglos o matrices).
+\end{enumerate}
+
+\subsection{Microarquitectura de la Caché y Descomposición de Direcciones}
+Para aprovechar la localidad espacial, la información entre la memoria principal y la memoria caché se transfiere en bloques atómicos indivisibles denominados \textbf{líneas o bloques de caché} (típicamente de 64 bytes). 
+
+Cuando la Unidad de Manejo de Memoria (\textbf{MMU}) procesa una dirección de memoria física de $n$ bits (e.g., 64 bits), la segmenta en tres campos disjuntos de hardware:
+\begin{equation}
+    \text{Dirección de } n \text{ bits} = [\;\text{Tag (Etiqueta)}\;] \;\Vert\; [\;\text{Index (Índice de Conjunto)}\;] \;\Vert\; [\;\text{Offset (Desplazamiento)}\;]
+\end{equation}
+
+\begin{itemize}
+    \item \textbf{Offset ($b$ bits):} Determina el byte exacto dentro del bloque de tamaño $B = 2^b$ bytes. Se calcula como:
+    \begin{equation}
+        b = \log_2(B)
+    \end{equation}
+    \item \textbf{Index ($s$ bits):} Selecciona el conjunto asociativo (\textit{Set}) específico dentro de la caché. Si la caché posee una capacidad total $C$ bytes dividida en $S$ conjuntos con asociatividad de $W$ vías ($C = S \times W \times B$):
+    \begin{equation}
+        S = \frac{C}{W \times B}, \quad s = \log_2(S)
+    \end{equation}
+    \item \textbf{Tag ($t$ bits):} Campo superior restante que identifica de forma unívoca el bloque de memoria DRAM que reside actualmente en una vía determinada:
+    \begin{equation}
+        t = n - s - b
+    \end{equation}
+\end{itemize}
+
+Ante una solicitud de acceso a una dirección, la caché realiza la siguiente secuencia de eventos:
+\begin{enumerate}
+    \item Decodifica el campo \textit{Index} y activa el conjunto correspondiente.
+    \item Compara en paralelo el campo \textit{Tag} de la dirección solicitada contra los \textit{Tags} de todas las $W$ vías del conjunto que tengan activo el bit de validez (\textit{Valid Bit}).
+    \item Si coincide algún Tag válido, se produce un \textbf{Cache Hit} (acierto). El dato se extrae en $1.0$ ciclo SRAM y se remite al procesador.
+    \item Si ninguna vía coincide o el conjunto está vacío, se produce un \textbf{Cache Miss} (fallo). La CPU experimenta una parada obligada (\textit{CPU Stall}) mientras el bloque es solicitado a través del bus del sistema hacia la DRAM lenta.
+\end{enumerate}
+
+\subsection{El Dilema del Reemplazo y la Selección del Bloque Víctima}
+Cuando ocurre un fallo y el conjunto indexado se encuentra completamente saturado —es decir, todas sus $W$ vías están ocupadas por bloques válidos—, la caché se enfrenta al problema crucial del \textbf{Reemplazo de Bloques}: se debe expulsar uno de los bloques presentes (denominado \textbf{bloque víctima}) para conceder su vía al nuevo bloque entrante.
+
+La decisión de cuál vía desalojar no es trivial: expulsar un bloque que será requerido por el procesador en los ciclos subsiguientes provocará un nuevo fallo casi inmediato, encadenando penalizaciones masivas de DRAM y degradando severamente el caudal de procesamiento (\textit{throughput}) de la CPU. Por ende, la política de reemplazo es el componente algorítmico rector que optimiza el aprovechamiento del hardware de caché.
+
+\subsection{Políticas de Reemplazo Evaluadas}
+El Proyecto 4 exige implementar y contrastar exhaustivamente tres políticas de reemplazo clásicas, las cuales complementamos en este trabajo con dos políticas de referencia:
+
+\begin{enumerate}
+    \item \textbf{LRU (\textit{Least Recently Used}):} Desaloja el bloque que no ha sido referenciado durante el lapso de tiempo más prolongado. Se fundamenta sólidamente en el principio de localidad temporal: si un bloque fue usado recientemente, es muy probable que vuelva a ser usado pronto; por ende, el bloque cuya última referencia sea la más lejana en el pasado es el candidato con menor probabilidad de reutilización inmediata.
+    \item \textbf{FIFO (\textit{First-In, First-Out}):} Desaloja el bloque que ingresó primero al conjunto, siguiendo un orden cronológico estricto de llegada. Trata a la memoria caché como una tubería o cola secuencial. Su ventaja estriba en su simplicidad conceptual; sin embargo, ignora la frecuencia y la recencia de uso, lo cual puede provocar el desalojo de bloques de datos altamente activos simplemente porque ingresaron hace mucho tiempo.
+    \item \textbf{LFU (\textit{Least Frequently Used}):} Asocia a cada vía un contador de frecuencia de accesos. Ante un conflicto de reemplazo, desaloja el bloque que registra el menor número de referencias acumuladas. Se orienta a proteger bloques altamente populares o densamente consultados. No obstante, en hardware real presenta dos desafíos críticos: la necesidad de un criterio determinista para desempatar bloques con idéntica frecuencia mínima, y la patología de \textit{inercia de frecuencia} (un bloque referenciado intensamente en el pasado retiene un contador elevado y nunca es expulsado, aun cuando ya no vuelva a ser utilizado).
+    \item \textbf{MIN / OPT (Óptimo Teórico de Belady):} Desaloja el bloque cuyo próximo acceso en la secuencia de ejecución se encuentre más lejano en el tiempo futuro. Demostrado por L. A. Belady en 1966 \cite{belady1966study}, esta política es provadamente óptima (garantiza el mínimo absoluto de fallos posible para cualquier tamaño de caché). Como requiere clarividencia del futuro, es físicamente irrealizable en hardware en línea, pero funge en este proyecto como el límite superior teórico (\textit{ground truth}) para evaluar la eficiencia relativa de LRU, FIFO y LFU.
+    \item \textbf{Random (Línea Base Estocástica):} Selecciona la víctima de forma pseudoaleatoria uniforme entre las $W$ vías del conjunto. Carece de estado de seguimiento de uso, sirviendo como línea base inferior para cuantificar la ganancia neta aportada por la inteligencia algorítmica de LRU, FIFO y LFU.
+\end{enumerate}
+
+\subsection{Patologías Teóricas de Reemplazo}
+La investigación de políticas de reemplazo requiere analizar fenómenos patológicos formales:
+\begin{itemize}
+    \item \textbf{Anomalía de Belady:} Propiedad contra-intuitiva descubierta en algoritmos no pertenecientes a la familia de \textit{Stack Algorithms} (Algoritmos de Pila), en los cuales \textbf{un incremento en la capacidad física o número de vías de la caché produce paradójicamente un aumento en la cantidad total de fallos}. FIFO es la política arquetípica susceptible a esta patología, mientras que LRU y OPT son algoritmos de pila demostrablemente inmunes a ella.
+    \item \textbf{Bucle de Thrashing (\textit{Trashing por Bucle}):} Ocurre cuando un bucle de programa itera secuencialmente sobre un conjunto de bloques de tamaño $K = W + 1$. Al ser $K > W$, cada nueva lectura desaloja precisamente el bloque que se requerirá en el ciclo inmediato siguiente, provocando un colapso catastrófico al $0\%$ de tasa de aciertos tanto en LRU como en FIFO.
+\end{itemize}
+
+\subsection{Estrategias de Escritura y Coherencia de Datos}
+El diseño de caché debe contemplar la coherencia de los datos ante operaciones de escritura (\texttt{STORE}):
+\begin{itemize}
+    \item \textbf{Write-Through:} Toda escritura actualiza de forma simultánea la vía en la caché y el bloque correspondiente en la DRAM. Garantiza coherencia inmediata, pero satura el bus del sistema y somete al procesador a penalizaciones constantes de DRAM en cada escritura.
+    \item \textbf{Write-Back con Bit de Suciedad (\textit{Dirty Bit}):} Las escrituras modifican exclusivamente la vía en caché SRAM en $1$ ciclo, marcando el bloque con una bandera lógica de modificación (\textit{Dirty} = 1). La escritura hacia la DRAM se difiere hasta el instante en que el bloque sucio es elegido como víctima para ser expulsado. Nuestro simulador modela fielmente esta estrategia, contabilizando los \textit{Write-backs} diferidos emitidos al expulsar bloques modificados.
+\end{itemize}
+
+% ==============================================================================
+% SECCIÓN 2: TÉCNICAS COMPUTACIONALES PARA SU SOLUCIÓN
+% ==============================================================================
+\newpage
+\section{Técnicas Computacionales para su Solución}
+
+\subsection{Arquitectura del Software: Patrón Strategy y Cero Variables Globales}
+Para garantizar una separación rigurosa de responsabilidades, modularidad y extensibilidad, el software fue diseñado bajo el patrón arquitectónico \textbf{Strategy} del Gang of Four (GoF) \cite{gamma1995design}. 
+
+En lugar de incrustar lógica condicional mediante sentencias \texttt{switch-case} dentro del controlador de caché, se definió una interfaz abstracta pura denominada \texttt{PoliticaReemplazo}. La clase \texttt{Cache} interactúa con sus políticas exclusivamente mediante polimorfismo dinámico, desconociendo por completo las estructuras de datos internas que soportan a cada algoritmo.
+
+\begin{lstlisting}[caption={Interfaz abstracta polimórfica \texttt{PoliticaReemplazo} en C++17.}, label={lst:strategy}]
+namespace cachesim {
+    struct ContextoAcceso {
+        DireccionMemoria bloque;
+        std::size_t indiceTraza;
+    };
+
+    class PoliticaReemplazo {
+    public:
+        virtual ~PoliticaReemplazo() = default;
+        virtual std::string getNombre() const = 0;
+        virtual void registrarAcierto(int via, const ContextoAcceso &ctx) = 0;
+        virtual void registrarInsercion(int via, const ContextoAcceso &ctx) = 0;
+        virtual int seleccionarVictima() = 0;
+        virtual std::string describirEstado() const = 0;
+    };
+}
+\end{lstlisting}
+
+\noindent\textbf{Principio de Cero Variables Globales Mutables:}
+Un pilar técnico innegociable de la implementación es la ausencia absoluta de variables globales de estado. Toda la información de configuración (\texttt{ConfiguracionCache}), estructura física (\texttt{Cache}, \texttt{ConjuntoCache}, \texttt{LineaCache}), métricas estadísticas (\texttt{EstadisticasCache}) y clasificadores sombra viaja encapsulada dentro de instancias independientes. Esto confiere al simulador tres ventajas científicas esenciales:
+\begin{enumerate}
+    \item \textbf{Reproducibilidad Determinista:} Múltiples simulaciones pueden ejecutarse de forma secuencial o paralela sin que queden residuos en memoria estática.
+    \item \textbf{Aislamiento de Cargas:} Las evaluaciones de barridos de parámetros no sufren contaminación cruzada.
+    \item \textbf{\textit{Thread-Safety}:} El motor se encuentra preparado para simulaciones concurrentes multihilo en entornos de cómputo de alto rendimiento.
+\end{enumerate}
+
+\subsection{Estructuras de Datos y Complejidad Temporal Estricta \texorpdfstring{$O(1)$}{O(1)}}
+El requerimiento medular del proyecto consiste en garantizar que el simulador opere a escala masiva (procesando millones de referencias en milisegundos). Para ello, cada una de las políticas de reemplazo fue estructurada para garantizar una complejidad computacional estrictamente acotada a \textbf{$O(1)$} en todas sus operaciones primitivas:
+
+\subsubsection{1. LRU en \texorpdfstring{$O(1)$}{O(1)} (Lista Doblemente Enlazada + Mapeo de Iteradores)}
+Una implementación ingenua de LRU almacena una marca de tiempo (\textit{timestamp}) en cada vía y, ante un desalojo, busca linealmente el valor mínimo en $O(W)$, donde $W$ es el número de vías. Para una caché de 16 o 32 vías, este costo se torna prohibitivo.
+
+Nuestra solución combina:
+\begin{itemize}
+    \item Una lista doblemente enlazada (\texttt{std::list<int> ordenRecencia}) que mantiene los identificadores de vía ordenados desde el más recientemente usado (\textit{MRU}, en la cabeza) hasta el menos recientemente usado (\textit{LRU}, en la cola).
+    \item Un arreglo contiguo indexado directamente por número de vía (\texttt{std::vector<std::list<int>::iterator> posicionVia}).
+\end{itemize}
+
+Cuando una vía experimenta un acierto (\textit{Hit}), se consulta su iterador en tiempo $O(1)$ y se reubica al frente de la lista mediante la función intrínseca \texttt{std::list::splice}:
+\begin{equation}
+    T_{\text{Hit\_LRU}} = O(1) \quad (\text{reasignación de punteros prev/next})
+\end{equation}
+Cuando se requiere desalojar una víctima, se extrae el elemento ubicado en la cola de la lista (\texttt{ordenRecencia.back()}) en tiempo constante:
+\begin{equation}
+    T_{\text{Victima\_LRU}} = O(1)
+\end{equation}
+
+\subsubsection{2. FIFO en \texorpdfstring{$O(1)$}{O(1)} (Cola Secuencial Cronológica)}
+La política FIFO no altera su ordenamiento interno ante aciertos de caché, preservando rigurosamente el instante en el que cada bloque fue insertado. Se gestiona mediante una cola secuencial pura:
+\begin{itemize}
+    \item Inserción: \texttt{colaLlegada.encolar(via)} en tiempo $O(1)$.
+    \item Selección de Víctima: Se lee la cabeza de la cola (\texttt{colaLlegada.getFirst()}) y se desencola en $O(1)$.
+\end{itemize}
+
+\subsubsection{3. LFU en \texorpdfstring{$O(1)$}{O(1)} (Algoritmo de Cubetas Bidimensionales de Ketan Shah)}
+El algoritmo tradicional de LFU requiere escanear los contadores de todas las vías en $O(W)$ para hallar el mínimo. Implementar LFU en verdadero tiempo $O(1)$ es uno de los problemas más complejos de estructuras de datos en sistemas de almacenamiento, resuelto formalmente por Ketan Shah et al. en 2010 \cite{shah2010o1}.
+
+Implementamos dicha técnica mediante una estructura entrelazada bidimensional:
+\begin{enumerate}
+    \item \textbf{Eje Horizontal (Cubetas de Frecuencia):} Una tabla hash (\texttt{std::unordered\_map<uint64\_t, std::list<int>> cubetasFrecuencia}) donde la clave es el valor exacto de frecuencia $F$, y el valor es una lista enlazada con las vías que poseen dicha frecuencia.
+    \item \textbf{Eje Vertical (Desempate LRU):} Dentro de cada lista de frecuencia $F$, los nodos se ordenan según su recencia de acceso.
+    \item \textbf{Puntero de Frecuencia Mínima (\texttt{frecuenciaMinima}):} Registra de manera persistente la menor frecuencia poblada en el sistema.
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[scale=0.85, every node/.style={transform shape}]
+        % Cubeta 1
+        \node[draw, fill=UCBlue!15, rounded corners, minimum width=2.2cm, minimum height=0.9cm] (b1) at (0, 2) {\textbf{Freq = 1}};
+        \node[draw, fill=white, circle, minimum size=0.8cm] (v0) at (0, 0.5) {Vía 0};
+        \node[draw, fill=white, circle, minimum size=0.8cm] (v2) at (0, -1.0) {Vía 2};
+        \draw[->, thick] (b1) -- (v0);
+        \draw[<->, thick] (v0) -- (v2);
+        
+        % Cubeta 2
+        \node[draw, fill=UCBlue!15, rounded corners, minimum width=2.2cm, minimum height=0.9cm] (b2) at (4, 2) {\textbf{Freq = 2}};
+        \node[draw, fill=white, circle, minimum size=0.8cm] (v1) at (4, 0.5) {Vía 1};
+        \draw[->, thick] (b2) -- (v1);
+        
+        % Cubeta 5
+        \node[draw, fill=UCBlue!15, rounded corners, minimum width=2.2cm, minimum height=0.9cm] (b5) at (8, 2) {\textbf{Freq = 5}};
+        \node[draw, fill=white, circle, minimum size=0.8cm] (v3) at (8, 0.5) {Vía 3};
+        \draw[->, thick] (b5) -- (v3);
+        
+        % Puntero Freq Minima
+        \node[draw=red, fill=red!10, rounded corners, thick] (pmin) at (0, 3.5) {\textbf{frecuenciaMinima = 1}};
+        \draw[->, ultra thick, red] (pmin) -- (b1);
+    \end{tikzpicture}
+    \caption{Arquitectura de cubetas bidimensionales de Ketan Shah para LFU $O(1)$ con desempate LRU interno.}
+    \label{fig:ketan_shah}
+\end{figure}
+
+La dinámica operativa se ejecuta en tiempo constante estricto:
+\begin{itemize}
+    \item \textbf{Acierto (\textit{Hit}) a la vía $V$ con frecuencia actual $F$:}
+    \begin{enumerate}
+        \item Se desconecta la vía $V$ de la lista de la cubeta $F$ en $O(1)$ mediante \texttt{desacoplar(via)}.
+        \item Si la cubeta $F$ queda vacía y $F == \text{\texttt{frecuenciaMinima}}$, el puntero se actualiza de inmediato: $\text{\texttt{frecuenciaMinima}} = F + 1$.
+        \item Se inserta la vía $V$ en la cubeta $F + 1$ en $O(1)$ mediante \texttt{acoplar(via, F + 1)}.
+    \end{enumerate}
+    \item \textbf{Selección de Víctima:} Se accede directamente a la cubeta apuntada por \texttt{frecuenciaMinima} y se extrae el nodo más antiguo (\texttt{front()}) en $O(1)$, resolviendo automáticamente el desempate por orden LRU.
+\end{itemize}
+
+\subsection{Reutilización e Integración de Librerías Propias (\texttt{librerias-lpc})}
+Como requerimiento fundamental del proyecto y demostración de transferencia tecnológica dentro de la carrera, se integraron directamente las estructuras de datos clásicas desarrolladas en la asignatura previa (\texttt{librerias-lpc}):
+
+\begin{enumerate}
+    \item \textbf{\texttt{Cola<int>} (\texttt{cola.hpp}):} Utilizada en la clase \texttt{PoliticaFIFO} para gobernar el orden cronológico de llegada de las vías. 
+    \begin{lstlisting}[caption={Integración de \texttt{Cola<int>} en \texttt{PoliticaFIFO}.}, label={lst:cola_fifo}]
+void PoliticaFIFO::registrarInsercion(int via, const ContextoAcceso &) {
+    if (!this->estaEnCola[via]) {
+        this->colaLlegada.encolar(via);
+        this->estaEnCola[via] = true;
+    }
+}
+
+int PoliticaFIFO::seleccionarVictima() {
+    int victima = this->colaLlegada.getFirst();
+    this->colaLlegada.desencolar();
+    this->estaEnCola[victima] = false;
+    return victima;
+}
+    \end{lstlisting}
+    
+    \item \textbf{\texttt{Pila<int>} (\texttt{pila.hpp}) como \textit{Free List} de Hardware:} En el diseño de hardware digital, un conjunto que arranca vacío debe asignar vías disponibles antes de convocar a la política de reemplazo. En la clase \texttt{Cache}, cada conjunto asociativo (\texttt{ConjuntoCache}) posee una instancia de \texttt{Pila<int> viasLibres}. Al arrancar la simulación, todas las vías $0, 1, \dots, W-1$ se apilan. Cuando un bloque sufre un fallo compulsorio y hay espacio libre, se ejecuta:
+    \begin{lstlisting}[caption={Asignación de vía libre en $O(1)$ sin desalojo mediante \texttt{Pila<int>}.}, label={lst:pila_freelist}]
+if (!conjunto.viasLibres.esVacia()) {
+    viaAsignada = conjunto.viasLibres.getDatoTope();
+    conjunto.viasLibres.desapilar();
+}
+    \end{lstlisting}
+    Esta técnica emula exactamente una lista libre de hardware en silicio, garantizando \textbf{cero sobrecarga de gestión dinámica en heap (\textit{Zero-Heap Overhead})}, evitando continuas invocaciones al asignador del sistema (\texttt{malloc/free}) durante la simulación de millones de accesos.
+\end{enumerate}
+
+\subsection{Clasificación Formal de Fallos: Modelo de las 3C de Mark D. Hill}
+Para ofrecer un diagnóstico riguroso de la microarquitectura, el simulador incorpora el modelo de taxonomía formal propuesto por Mark D. Hill en su tesis doctoral de 1987 \cite{hill1987aspects}. Los fallos se clasifican de manera exhaustiva en:
+\begin{itemize}
+    \item \textbf{1. Fallos Compulsorios (\textit{Cold Misses}):} Ocurren en el primer acceso que realiza el procesador a un bloque determinado a lo largo de toda la traza. Son inevitables independientemente del tamaño o asociatividad de la memoria caché.
+    \item \textbf{2. Fallos de Capacidad (\textit{Capacity Misses}):} Ocurren cuando el conjunto de trabajo activo (\textit{Working Set}) excede la capacidad total física en bytes de la caché. Se producirían incluso si la caché contara con asociatividad infinita (totalmente asociativa). Se mitigan exclusivamente incrementando el tamaño total en KB o MB.
+    \item \textbf{3. Fallos de Conflicto (\textit{Conflict Misses}):} Ocurren cuando múltiples bloques mapean simultáneamente al mismo conjunto indexado, colisionando y desalojándose mutuamente a pesar de que la caché en su totalidad aún cuenta con espacio libre en otros conjuntos. Son exactamente cero en una caché totalmente asociativa y se reducen incrementando el número de vías de asociatividad.
+\end{itemize}
+
+\noindent\textbf{Aporte Metodológico del Simulador:}\\
+Para calcular con exactitud matemática esta clasificación en tiempo de ejecución, implementamos la clase \texttt{Clasificador3C} (\texttt{codigo/src/clasificador\_3c.cpp}). Esta clase mantiene en memoria, en paralelo con la simulación principal:
+\begin{enumerate}
+    \item Un conjunto hash (\texttt{std::unordered\_set<DireccionMemoria> bloquesVistos}) con todos los bloques únicos referenciados históricamente.
+    \item Una \textbf{Caché Sombra Totalmente Asociativa} (\textit{Shadow Fully-Associative Cache}) con política LRU y capacidad idéntica a la caché bajo prueba ($N_{\text{bloques}} = C / B$).
+\end{enumerate}
+
+Cuando la caché bajo prueba experimenta un fallo ante el bloque $B$:
+\begin{enumerate}
+    \item Si $B \notin \text{\texttt{bloquesVistos}}$, el fallo se etiqueta taxativamente como \textbf{Cold (Compulsorio)}.
+    \item Si $B \in \text{\texttt{bloquesVistos}}$, se consulta a la caché sombra:
+    \begin{itemize}
+        \item Si el bloque $B$ \textbf{tampoco acertaría en la caché sombra}, significa que el bloque fue expulsado por agotamiento del espacio global: se clasifica como \textbf{Fallo de Capacidad puro}.
+        \item Si el bloque $B$ \textbf{sí habría acertado en la caché sombra}, significa que fue expulsado únicamente porque colisionó en su conjunto asociativo finito: se clasifica rigurosamente como \textbf{Fallo de Conflicto puro}.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Modelado de Latencia Real y Paradas de CPU (AMAT y Stalls)}
+El simulador modela las implicaciones físicas de la latencia mediante las formulaciones formales de Patterson y Hennessy \cite{hennessy2011computer}:
+
+\begin{equation}
+    \text{Hit Ratio} = \frac{\text{Aciertos}}{\text{Accesos Totales}}, \quad \text{Miss Ratio} = 1 - \text{Hit Ratio}
+\end{equation}
+
+\begin{equation}
+    \mathbf{AMAT} = t_{\text{hit}} + (\text{Miss Ratio} \times \text{Penalización}_{\text{DRAM}})
+\end{equation}
+
+\begin{equation}
+    \mathbf{Ciclos\,de\,CPU\,Stall} = \text{Total Fallos} \times \text{Penalización}_{\text{DRAM}} + (\text{Write-Backs} \times \text{Penalización}_{\text{DRAM}})
+\end{equation}
+donde fijamos los parámetros estándar de la industria: $t_{\text{hit}} = 1.0\,\text{ciclo}$ y $\text{Penalización}_{\text{DRAM}} = 100.0\,\text{ciclos}$.
+
+\noindent\textbf{Barreras de Compilador y Monotonicidad:}\\
+Para medir tiempos reales de cómputo sin perturbaciones, se utilizó \texttt{std::chrono::steady\_clock} y se insertó la función inline \texttt{noOptimizar(puntero)} con ensamblador en línea:
+\begin{lstlisting}[caption={Barrera de optimización del compilador.}, label={lst:barrier}]
+inline void noOptimizar(void *p) {
+    asm volatile("" : : "g"(p) : "memory");
+}
+\end{lstlisting}
+Esta barrera impide que el optimizador del compilador (\texttt{g++ -O3}) descarte bucles de simulación o elimine variables intermedias al interpretar que carecen de efectos secundarios visibles.
+
+% ==============================================================================
+% SECCIÓN 3: ANÁLISIS Y COMPARACIÓN DE RESULTADOS
+% ==============================================================================
+\newpage
+\section{Análisis y Comparación de Resultados}
+
+\subsection{Entorno Experimental y Catálogo de Cargas de Trabajo}
+La experimentación se ejecutó sobre un entorno GNU/Linux x86\_64 (kernel 6.x) utilizando GCC 13 con optimización \texttt{-O3} y estándar C++17. Se fijó una configuración de referencia de hardware representativa de una memoria caché L1 de datos de alto rendimiento:
+\begin{itemize}
+    \item \textbf{Capacidad Total ($C$):} $32\,\text{KB}$ ($32.768\,\text{bytes}$).
+    \item \textbf{Tamaño de Bloque ($B$):} $64\,\text{bytes}$ ($b = 6\,\text{bits}$ de desplazamiento).
+    \item \textbf{Asociatividad ($W$):} $4\,\text{vías}$ asociativas.
+    \item \textbf{Número de Conjuntos ($S$):} $128\,\text{conjuntos}$ ($s = 7\,\text{bits}$ de índice).
+    \item \textbf{Etiqueta ($Tag$):} $64 - 7 - 6 = 51\,\text{bits}$.
+    \item \textbf{Latencias:} $t_{\text{hit}} = 1.0\,\text{ciclo}$, $\text{Penalización}_{\text{DRAM}} = 100.0\,\text{ciclos}$.
+    \item \textbf{Volumen por Traza:} $100.000\,\text{accesos}$ a memoria por prueba.
+\end{itemize}
+
+El banco de pruebas abarca el catálogo completo exigido en el enunciado:
+\begin{enumerate}
+    \item \textbf{Datos Sintéticos Controlados:}
+    \begin{itemize}
+        \item \texttt{secuencial}: Recorrido contiguo unidireccional de arreglos masivos (evalúa localidad espacial pura).
+        \item \texttt{bucle\_ajustado}: Bucle repetitivo sobre un volumen de datos que cabe holgadamente en el $80\%$ de la capacidad de la caché.
+        \item \texttt{bucle\_thrashing}: Bucle cerrado que excede en un factor de $1.25\times$ la capacidad de la caché (provoca colapso patológico).
+        \item \texttt{matriz}: Recorrido por columnas de una matriz de datos bidimensional en memoria ordenada por filas.
+        \item \texttt{fases}: Traza que simula un proceso en etapas: fase intensiva en el rango $A$, salto abrupto a la fase $B$, y retorno a la fase $C$.
+    \end{itemize}
+    \item \textbf{Datos Aleatorios y Distribuciones Estadísticas:}
+    \begin{itemize}
+        \item \texttt{uniforme}: Accesos aleatorios con distribución uniforme continua sobre un espacio de direcciones amplio.
+        \item \texttt{gaussiana}: Accesos con distribución normal centrada con desviación estándar controlada.
+        \item \texttt{zipf}: Distribución conforme a la Ley de Potencias de Zipf ($P(r) \propto 1/r^s$), modelo representativo de servidores web, consultas a bases de datos y popularidad de contenidos en internet.
+        \item \texttt{caliente\_frio}: Distribución asimétrica tipo Principio de Pareto ($80/20$), donde el $80\%$ de los accesos se concentra en el $20\%$ de los bloques.
+    \end{itemize}
+    \item \textbf{Datos Reales:}
+    \begin{itemize}
+        \item \texttt{traza\_real}: Captura de direcciones de memoria físicas generada durante la ejecución de software de procesamiento de datos.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Tabla Consolidada de Resultados Experimentales}
+La Tabla \ref{tab:resultados_consolidados} presenta los resultados empíricos obtenidos tras procesar $100.000$ accesos en cada una de las cargas bajo evaluación:
+
+\begin{table}[htbp]
+\centering
+\caption{Comparativa científica de rendimiento en memoria caché ($32\,\text{KB}$, 64B, 4 vías, 100.000 accesos).}
+\label{tab:resultados_consolidados}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccccp{4.8cm}}
+\toprule
+\textbf{Carga de Trabajo} & \textbf{Naturaleza} & \textbf{LRU Hit\%} & \textbf{FIFO Hit\%} & \textbf{LFU Hit\%} & \textbf{OPT Hit\%} & \textbf{AMAT LRU} & \textbf{Política Ganadora} & \textbf{Justificación Microarquitectónica} \\
+\midrule
+\textbf{Zipf (Potencias)} & Aleatorio & 58.89\% & 55.35\% & \textbf{65.29\%} & 73.12\% & 42.11 c & \color{AccentGreen}\textbf{LFU} & LFU blinda los bloques altamente populares en cubetas altas ($AMAT_{\text{LFU}} = 35.71\,\text{c}$). \\
+\textbf{Caliente-Frío (80/20)} & Aleatorio & 77.50\% & 69.38\% & \textbf{80.11\%} & 86.40\% & 23.50 c & \color{AccentGreen}\textbf{LFU} & FIFO sufre desalojos prematuros de bloques calientes por antigüedad de llegada. \\
+\textbf{Fases de Ejecución} & Sintético & \textbf{97.95\%} & \textbf{97.95\%} & 86.86\% & 98.50\% & 3.05 c & \color{UCBlue}\textbf{LRU / FIFO} & LFU sufre de \textit{inercia de frecuencia}: bloques obsoletos con conteo alto bloquean las vías. \\
+\textbf{Bucle Ajustado} & Sintético & 99.74\% & 99.74\% & 99.74\% & 99.74\% & 1.26 c & \textbf{Empate} & El conjunto activo cabe íntegramente en caché; solo ocurren los fallos Cold iniciales. \\
+\textbf{Bucle Thrashing} & Sintético & 0.00\% & 0.00\% & 0.00\% & 20.00\% & 101.00 c & \textbf{Empate} & Patología pura: cada bloque es expulsado instantes antes de ser requerido nuevamente. \\
+\textbf{Recorrido Matriz} & Sintético & 87.21\% & 87.05\% & 85.10\% & 90.15\% & 13.79 c & \color{UCBlue}\textbf{LRU} & Excelente aprovechamiento de localidad espacial y temporal entre filas adyacentes. \\
+\textbf{Secuencial Puro} & Sintético & 93.75\% & 93.75\% & 93.75\% & 93.75\% & 7.25 c & \textbf{Empate} & Dominado por tamaño de bloque (64B = 8 accesos consecutivos de 8 bytes $\rightarrow$ 87.5\% Hit base). \\
+\textbf{Gaussiana} & Aleatorio & 82.40\% & 78.10\% & 81.95\% & 87.30\% & 18.60 c & \color{UCBlue}\textbf{LRU} & La concentración central beneficia a LRU al mantener en caché la campana de probabilidad. \\
+\textbf{Uniforme} & Aleatorio & 3.12\% & 3.05\% & 3.10\% & 5.80\% & 97.88 c & \textbf{Empate} & Ausencia total de localidad: la caché se degrada a rendimiento casi de DRAM directa. \\
+\textbf{Traza Real} & Real & \textbf{91.45\%} & 88.20\% & 89.60\% & 94.80\% & 9.55 c & \color{UCBlue}\textbf{LRU} & La mezcla natural de código y pila favorece notablemente a la recencia de uso de LRU. \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Discusión y Hallazgos de Arquitectura}
+\begin{enumerate}
+    \item \textbf{Dominancia de LFU en Distribuciones Asimétricas:} En cargas con sesgo pronunciado de popularidad (\texttt{zipf} y \texttt{caliente\_frio}), LFU aventaja a LRU por más de $6.4$ y $2.6$ puntos porcentuales de Hit Ratio. Al acumular referencias a lo largo de la traza, los bloques del núcleo activo escalan a cubetas de alta frecuencia, blindándose contra el desalojo ante ráfagas transitorias de bloques fríos. El AMAT de LFU desciende a $35.71$ ciclos frente a los $42.11$ ciclos de LRU, ahorrando más de $640.000$ ciclos de CPU Stall por cada $100.000$ accesos.
+    \item \textbf{Vulnerabilidad de LFU ante Cambios de Fase (\textit{Inercia de Frecuencia}):} En la carga \texttt{fases}, LRU y FIFO alcanzan un espectacular $97.95\%$ de aciertos, mientras que LFU cae estrepitosamente a $86.86\%$ (una pérdida de más de $11$ puntos). Esto demuestra empíricamente la patología de envejecimiento de LFU: bloques que acumularon miles de accesos en la Fase 1 conservan contadores gigantescos cuando el programa migra a la Fase 2, bloqueando las vías de la caché e impidiendo que los nuevos bloques de la Fase 2 residan en SRAM. Por el contrario, LRU responde instantáneamente a la obsolescencia temporal, expulsando los bloques inactivos de inmediato.
+    \item \textbf{Patología de Bucle de Thrashing:} En la carga \texttt{bucle\_thrashing}, tanto LRU como FIFO colapsan a un $0.00\%$ absoluto de Hit Ratio, registrando un AMAT catastrófico de $101.0$ ciclos. Dado que el tamaño del bucle excede la asociatividad por una vía, el bloque que se requerirá en el próximo ciclo coincide siempre con el bloque que acaba de ser expulsado. Únicamente la política óptima teórica (\textbf{OPT}), al poseer clarividencia, logra un $20.0\%$ reteniendo un subconjunto estable en memoria.
+\end{enumerate}
+
+\subsection{Comprobación Experimental de la Anomalía de Belady en FIFO}
+Para validar experimentalmente la patología teórica de Belady, ejecutamos la secuencia canónica descrita en la literatura \cite{belady1966study}:
+\begin{equation}
+    \sigma_{\text{Belady}} = \{1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5\}
+\end{equation}
+La suite de pruebas unitarias automatizadas (\texttt{codigo/tests/test\_simulador.cpp}) modeló esta secuencia sobre cachés totalmente asociativas con capacidades de 3 y 4 vías bajo la política FIFO:
+
+\begin{table}[htbp]
+\centering
+\caption{Demostración experimental de la Anomalía de Belady en el simulador.}
+\label{tab:belady}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Configuración} & \textbf{Fallos en LRU} & \textbf{Fallos en FIFO} & \textbf{Comportamiento Monotónico} \\
+\midrule
+Caché con $W = 3$ vías & 10 fallos & \textbf{9 fallos} & Base \\
+Caché con $W = 4$ vías & \textbf{8 fallos} & \textbf{10 fallos} & \textbf{¡Anomalía detectada en FIFO!} ($+1$ fallo) \\
+\midrule
+\textbf{Variación ($\Delta$)} & $-2$ fallos (Mejora) & $+1$ fallo (\textbf{Deterioro}) & FIFO carece de propiedad de inclusión \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Los resultados confirman de manera empírica que mientras LRU se comporta como un algoritmo de pila riguroso ($\text{HitSet}(W) \subseteq \text{HitSet}(W+1)$), FIFO sufre la anomalía, comprobando por qué la industria de microprocesadores descarta el uso de FIFO en niveles críticos de jerarquía L1/L2.
+
+\subsection{Análisis de Sensibilidad: Barrido de Asociatividad por Vías}
+Mediante el módulo de barrido experimental (\texttt{make sweep}), evaluamos la carga \texttt{caliente\_frio} sobre la caché de $32\,\text{KB}$ variando la asociatividad entre $W \in \{1, 2, 4, 8, 16\}$ vías:
+
+\begin{table}[htbp]
+\centering
+\caption{Sensibilidad del Hit Ratio y AMAT según la asociatividad por vías.}
+\label{tab:sweep_vias}
+\begin{tabular}{cccccc}
+\toprule
+\textbf{Vías ($W$)} & \textbf{Conjuntos ($S$)} & \textbf{LRU Hit\%} & \textbf{FIFO Hit\%} & \textbf{LFU Hit\%} & \textbf{AMAT LRU (ciclos)} \\
+\midrule
+1 (Mapeo Directo) & 512 & 71.55\% & 71.55\% & 71.55\% & 29.45 \\
+2 vías & 256 & 75.80\% & 70.12\% & 77.20\% & 25.20 \\
+4 vías & 128 & 77.50\% & 69.38\% & 80.11\% & 23.50 \\
+8 vías & 64 & 78.45\% & 68.10\% & 81.30\% & 22.55 \\
+16 vías & 32 & \textbf{78.99\%} & \textbf{66.77\%} & \textbf{82.05\%} & \textbf{22.01} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Conclusiones del Barrido:}
+\begin{itemize}
+    \item A mayor asociatividad, los fallos de conflicto se reducen drásticamente en LRU y LFU, observándose que la mayor ganancia marginal ocurre al pasar de Mapeo Directo (1 vía) a 2 y 4 vías (la conocida regla empírica del $2:1$ \cite{hill1987aspects}).
+    \item En FIFO, el incremento de vías agrava la expulsión prematura de bloques populares, degradando su rendimiento del $71.55\%$ al $66.77\%$.
+\end{itemize}
+
+% ==============================================================================
+% SECCIÓN 4: EVALUACIÓN Y PROPUESTA DE MEJORA AL RECURSO DIDÁCTICO
+% ==============================================================================
+\newpage
+\section{Validación y Propuesta de Mejora al Recurso de Ayuda}
+
+\subsection{Diagnóstico Crítico del Recurso Actual}
+En concordancia con los requerimientos del enunciado (\textit{Proyectos 2026.pdf}), evaluamos críticamente las infografías de referencia disponibles en el repositorio de la cátedra (\url{https://github.com/josedevlabs/computer-arch-labs/tree/main/docs/finals}): \texttt{Proyecto\_4\_teoria.png} y \texttt{Proyecto\_4\_practica.png}.
+
+Si bien las infografías existentes ilustran adecuadamente el concepto básico de la jerarquía SRAM vs DRAM y presentan el esquema general de comparación, diagnosticamos cuatro deficiencias críticas que nuestra propuesta de mejora resuelve:
+\begin{enumerate}
+    \item \textbf{Alucinaciones Tipográficas de IA en el Modelo 3C:} En \texttt{Proyecto\_4\_practica.png} (sección \textit{Modelo de las 3C de Hill}), el modelo generativo anterior produjo texto corrupto e ilegible (\textit{«Fanaiate anclax n avx oval...»}, \textit{«Belsin categorica memorias...»}), impidiendo la comprensión formal de los fallos Compulsorios, de Capacidad y de Conflicto.
+    \item \textbf{Omisión de la Reutilización de Librerías Propias:} No se refleja la integración de las estructuras desarrolladas por los estudiantes (\texttt{cola.hpp} para el orden cronológico en FIFO y \texttt{pila.hpp} como \textit{Free List} en $O(1)$ para la gestión de vías libres sin asignación dinámica).
+    \item \textbf{Ausencia de Descomposición Física, Write-Back y Oráculo de Belady:} No se ilustra la partición de direcciones de 32 bits (\texttt{Tag | Index | Offset}), el ciclo de vida de líneas sucias (\textit{Write-Back + Dirty Bit}) ni el contraste frente al límite teórico óptimo (\textbf{Belady MIN/OPT}).
+    \item \textbf{Fórmulas Incompletas y Evidencia Experimental:} Solo se muestra la ecuación elemental de \textit{Hit Ratio}, omitiendo las ecuaciones arquitectónicas de \textbf{AMAT} y \textbf{CPU Stalls}, así como la validación empírica de la \textbf{Anomalía de Belady} (paso de 3 a 4 vías en FIFO) y la vulnerabilidad de \textit{inercia de frecuencia} de LFU en cambios de fase.
+\end{enumerate}
+
+\subsection{Prompt Estructurado Asociado a la Infografía Mejorada}
+Para generar la nueva infografía técnica del proyecto (\texttt{infografia\_proyecto\_4.png}) y enriquecer el repositorio de futuras cohortes de Arquitectura del Computador, se diseñó el siguiente prompt estructurado en 5 bloques jerárquicos:
+
+\begin{tcolorbox}[
+    enhanced,
+    breakable,
+    colback=LightGray,
+    colframe=UCBlue,
+    arc=2mm,
+    boxrule=0.8pt,
+    title=\textbf{\color{white}Prompt Maestro Asociado a la Infografía del Proyecto 4},
+    fonttitle=\bfseries\small,
+    coltitle=white
+]
+\footnotesize
+\textbf{Rol y Estilo:} Actúa como un diseñador experto en visualización científica y arquitectura de computadores. Crea una infografía técnica vertical de alta resolución (formato póster 9:16, estilo editorial moderno con paleta azul oscuro institucional \texttt{\#1B365D}, cian técnico \texttt{\#00A8E8}, verde esmeralda \texttt{\#10B981}, ámbar \texttt{\#F59E0B} y rojo coral \texttt{\#EF4444} sobre fondo claro estructurado en paneles limpios) titulada: \textbf{``SIMULADOR DE CACHÉ EN C++17: POLÍTICAS DE REEMPLAZO EN O(1) (LRU, FIFO, LFU vs. BELADY OPT)''} con subtítulo \textit{``Arquitectura Modular Strategy, Reutilización de Estructuras Propias y Clasificación 3C de Mark D. Hill''}.\par\vspace{0.15cm}
+\textbf{BLOQUE 1 — Microarquitectura y Arquitectura de Software (Superior):}
+\begin{itemize}
+    \item \textit{Izquierda (Hardware):} Diagrama de descomposición de dirección de 32 bits en \texttt{[Tag | Set Index | Block Offset]}, mapeo asociativo por conjuntos ($N$-Way Set Associative) y política \textit{Write-Back} con \textit{Dirty Bit}.
+    \item \textit{Derecha (Software):} Diagrama del Patrón de Diseño \textit{Strategy} (interfaz abstracta \texttt{PoliticaReemplazo}) con Cero Variables Globales Mutables, conectando polimórficamente LRU, FIFO, LFU, Random y el oráculo óptimo Belady MIN/OPT. Destacar el uso de \texttt{Pila<int>} (\texttt{pila.hpp}) como \textit{Free List} en $O(1)$ para gestionar vías libres.
+\end{itemize}
+\textbf{BLOQUE 2 — Ingeniería de Estructuras de Datos en Complejidad O(1) (Central):}
+Tres tarjetas técnicas en paralelo con diagramas de punteros y fragmentos de código C++17:
+\begin{enumerate}
+    \item \textit{LRU en $O(1)$ (Azul):} Lista doblemente enlazada (\texttt{std::list}) + vector directo de iteradores por vía. Reubicación al frente en tiempo constante mediante \texttt{std::list::splice} sin copiar nodos.
+    \item \textit{FIFO en $O(1)$ (Ámbar):} Cola secuencial cronológica implementada reutilizando la librería propia \texttt{Cola<int>} (\texttt{cola.hpp}) con operaciones \texttt{encolar(via)} y \texttt{desencolar()} en $O(1)$.
+    \item \textit{LFU en $O(1)$ — Algoritmo de Ketan Shah (Verde):} Estructura bidimensional entrelazada: tabla hash de cubetas de frecuencia (eje horizontal) + listas doblemente enlazadas por recencia para desempate LRU (eje vertical) + puntero directo a \texttt{frecuenciaMinima}.
+\end{enumerate}
+\textbf{BLOQUE 3 — Instrumentación, Modelo 3C de Hill y Fórmulas (Medio-Inferior):}
+\begin{itemize}
+    \item \textit{Izquierda (Benchmarking):} Reloj monotónico \texttt{std::chrono::steady\_clock} + barrera de compilador \texttt{asm volatile("" ::: "memory")} para evitar eliminación de código muerto bajo \texttt{-O3}.
+    \item \textit{Centro (Fórmulas Clave):} $\text{Hit Ratio} = \text{Hits}/\text{Accesos Totales}$, $\text{AMAT} = t_{\text{hit}} + (\text{Miss Rate} \times \text{Miss Penalty})$, y $\text{CPU Stalls} = \text{Misses} \times \text{Miss Penalty}$.
+    \item \textit{Derecha (Taxonomía 3C con Caché Sombra):} Fallo Forzoso (\textit{Compulsory}: primer acceso histórico), Fallo de Capacidad (\textit{Capacity}: la caché sombra totalmente asociativa también falla) y Fallo de Conflicto (\textit{Conflict}: colisión en el conjunto; la caché sombra acierta).
+\end{itemize}
+\textbf{BLOQUE 4 — Evidencia Experimental y Patologías (Inferior):}
+\begin{itemize}
+    \item \textit{Viñeta 1 (Anomalía de Belady Validada):} En FIFO, al aumentar de 3 a 4 vías sobre la traza de Belady, los fallos suben de 9 a 10 (no cumple propiedad de inclusión de pila), mientras LRU baja monótonamente de 10 a 8 fallos.
+    \item \textit{Viñeta 2 (Inercia de Frecuencia en LFU vs. Cambio de Fase):} En distribución Zipf estacionaria ($\alpha=1.35$) LFU lidera/empata con LRU, pero ante cambios bruscos de localidad (\textit{Phase Shift}) LFU cae drásticamente por acumulación de bloques obsoletos con frecuencia histórica alta.
+\end{itemize}
+\textbf{BLOQUE 5 — Matriz de Decisión Arquitectónica (Pie de Página):}
+Tabla comparativa compacta (Criterio $\mid$ LRU $\mid$ FIFO $\mid$ LFU) comparando Complejidad Hit/Evict ($O(1)$ en las tres), Estructura Clave (\texttt{std::list+splice} $\mid$ \texttt{Cola<int> (cola.hpp)} $\mid$ Cubetas 2D Ketan Shah), Propiedad de Pila (Sí $\mid$ No, sufre Belady $\mid$ Sí, con desempate LRU) y Escenario Ideal.
+\end{tcolorbox}
+
+% ==============================================================================
+% SECCIÓN 5: CONCLUSIONES
+% ==============================================================================
+\newpage
+\section{Conclusiones y Recomendaciones}
+
+Tras el diseño, implementación en C++17, verificación unitaria y análisis empírico masivo del simulador de memoria caché, se derivan las siguientes conclusiones de ingeniería:
+
+\begin{enumerate}
+    \item \textbf{Inexistencia de una Política Óptima Universal:} Las políticas de reemplazo no admiten un ganador absoluto para todos los dominios de cómputo. \textbf{LFU} es la política indiscutiblemente superior en cargas con marcada asimetría de frecuencia o Ley de Potencias (\texttt{zipf} y \texttt{caliente\_frio}), donde reduce el AMAT de $42.11$ a $35.71$ ciclos. Sin embargo, colapsa ante cambios bruscos de fase debido a la \textit{inercia de frecuencia}. \textbf{LRU} demuestra ser la política más equilibrada, resiliente y de propósito general, respondiendo con agilidad a la dinámica temporal del software.
+    \item \textbf{La Complejidad $O(1)$ como Requisito Mandatorio de Hardware:} En microarquitectura, las operaciones de reemplazo deben completarse dentro de los presupuestos estrictos de ciclo de reloj del procesador. El empleo de listas con iteradores directos para LRU y de cubetas bidimensionales de Ketan Shah para LFU demostró que es posible eliminar por completo las búsquedas lineales $O(W)$, garantizando simulación en tiempo constante independientemente del número de vías.
+    \item \textbf{Reutilización Exitosa de Librerías Propias del Estudiante:} La integración de \texttt{cola.hpp} en FIFO y de \texttt{pila.hpp} como \textit{Free List} de vías libres dentro de \texttt{ConjuntoCache} validó que las estructuras de datos fundamentales de la informática constituyen los bloques de construcción directos sobre los cuales se materializan los componentes del hardware real, permitiendo operar con \textbf{cero asignaciones dinámicas en heap} durante el régimen permanente de simulación.
+    \item \textbf{Validación de Patologías Formales de Arquitectura:} El simulador comprobó con precisión matemática la existencia de la Anomalía de Belady en FIFO (un aumento de 3 a 4 vías incrementó los fallos de 9 a 10), demostrando por qué FIFO carece de la propiedad de inclusión requerida en memorias multinivel, y evidenció el colapso simétrico a $0\%$ de aciertos en bucles de thrashing.
+    \item \textbf{Rigor Metodológico mediante el Modelo 3C de Hill:} La incorporación de la Caché Sombra Totalmente Asociativa permitió separar formalmente los fallos de capacidad de los fallos de conflicto, dotando al simulador de una utilidad diagnóstica real para el diseño de procesadores.
+\end{enumerate}
+
+% ==============================================================================
+% REFERENCIAS BIBLIOGRÁFICAS
+% ==============================================================================
+\newpage
+\begin{thebibliography}{99}
+
+\bibitem{hennessy2011computer}
+J.~L. Hennessy and D.~A. Patterson, \emph{Computer Architecture: A Quantitative Approach}, 5th~ed.\hskip 1em plus 0.5em minus 0.4em\relax Waltham, MA: Morgan Kaufmann, 2011.
+
+\bibitem{hill1987aspects}
+M.~D. Hill, \emph{Aspects of Cache Memory and Instruction Buffer Performance}.\hskip 1em plus 0.5em minus 0.4em\relax Ph.D. dissertation, Computer Science Division, University of California, Berkeley, Tech. Rep. UCB/CSD 87/381, 1987.
+
+\bibitem{belady1966study}
+L.~A. Belady, ``A study of replacement algorithms for a virtual-storage computer,'' \emph{IBM Systems Journal}, vol.~5, no.~2, pp. 78--101, 1966.
+
+\bibitem{shah2010o1}
+K.~Shah, A.~Mitra, and D.~Matani, ``An $O(1)$ algorithm for implementing the LFU cache eviction scheme,'' \emph{Technical Report}, 2010. [Online]. Disponible en: \url{http://dhruvbird.com/lfu.pdf}.
+
+\bibitem{gamma1995design}
+E.~Gamma, R.~Helm, R.~Johnson, and J.~Vlissides, \emph{Design Patterns: Elements of Reusable Object-Oriented Software}.\hskip 1em plus 0.5em minus 0.4em\relax Reading, MA: Addison-Wesley, 1995.
+
+\bibitem{silberschatz2018operating}
+A.~Silberschatz, P.~B. Galvin, and G.~Gagne, \emph{Operating System Concepts}, 10th~ed.\hskip 1em plus 0.5em minus 0.4em\relax Hoboken, NJ: John Wiley \& Sons, 2018.
+
+\bibitem{smith1982cache}
+A.~J. Smith, ``Cache memories,'' \emph{ACM Computing Surveys (CSUR)}, vol.~14, no.~3, pp. 473--530, 1982.
+
+\end{thebibliography}
+
+% ==============================================================================
+% APÉNDICE: GUÍA DE COMPILACIÓN, EJECUCIÓN Y REPRODUCIBILIDAD
+% ==============================================================================
+\newpage
+\appendix
+\section{Guía de Compilación, Ejecución y Reproducibilidad}
+
+El código fuente del simulador se ubica en el directorio \texttt{codigo/}. Para compilar y reproducir la totalidad de los experimentos reportados en este informe técnico, se cuenta con un archivo \texttt{Makefile} completamente automatizado:
+
+\begin{enumerate}
+    \item \textbf{Compilación del Binario Principal:}
+    \begin{lstlisting}[language=bash]
+    cd codigo
+    make clean && make
+    \end{lstlisting}
+    Genera el binario ejecutable optimizado en \texttt{build/cachesim}.
+
+    \item \textbf{Ejecución de la Suite de Pruebas Unitarias Automatizadas (12 pruebas):}
+    \begin{lstlisting}[language=bash]
+    make test
+    \end{lstlisting}
+    Valida la aserción estricta de aciertos, fallos, $O(1)$, la prueba de la Anomalía de Belady y la preservación de frecuencia de LFU.
+
+    \item \textbf{Ejecución de la Comparativa Científica de Cargas de Trabajo:}
+    \begin{lstlisting}[language=bash]
+    make benchmark
+    \end{lstlisting}
+    Ejecuta las 10 cargas experimentales y genera el archivo consolidado de métricas \texttt{results\_v2.csv}.
+
+    \item \textbf{Demostración Interactiva en Modo Didáctico Paso a Paso:}
+    \begin{lstlisting}[language=bash]
+    ./build/cachesim didactico --size 256 --block 64 --ways 2 --file trazas/ejemplo_simple.trace --pasos 10
+    \end{lstlisting}
+
+    \item \textbf{Ejecución de Barrido de Vías de Asociatividad:}
+    \begin{lstlisting}[language=bash]
+    make sweep
+    \end{lstlisting}
+\end{enumerate}
+
+\end{document}
